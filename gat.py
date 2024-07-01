@@ -14,10 +14,8 @@ class GAT(nn.Module):
         super(GAT, self).__init__()
         self.num_layers = num_layers
 
-        # Initial linear transformation
         self.lin0 = nn.Linear(node_input_dim, node_hidden_dim)
 
-        # GAT layers
         self.gat_layers = nn.ModuleList()
         for _ in range(num_layers):
             self.gat_layers.append(
@@ -30,17 +28,13 @@ class GAT(nn.Module):
                         activation=F.elu)
             )
 
-        # Linear layer for final output
         self.output_layer = nn.Linear(node_hidden_dim, node_hidden_dim)
 
     def forward(self, g, node_features):
-        # Initial transformation
         h = self.lin0(node_features)
 
-        # Apply GAT layers
         for l in range(self.num_layers):
             h = self.gat_layers[l](g, h).flatten(1)
 
-        # Output layer
         h = self.output_layer(h)
         return h
