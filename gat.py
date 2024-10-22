@@ -1,40 +1,34 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dgl.nn.pytorch import GATConv
-import dgl
+from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader
+from torch_geometric.nn import GATConv
+from rdkit import Chem
+from sklearn.model_selection import train_test_split
 
-class GAT(nn.Module):
-    def __init__(self,
-                 node_input_dim=36,
-                 edge_input_dim=6,
-                 node_hidden_dim=36,
-                 num_heads=3,
-                 num_layers=3):
-        super(GAT, self).__init__()
-        self.num_layers = num_layers
 
-        self.lin0 = nn.Linear(node_input_dim, node_hidden_dim)
+class GATNet(nn.Module):
+    def __init__(self, in_dim, hidden_dim, out_dim, num_heads):
+        super(GATNet, self).__init__()
+        self.gat1 = GATConv(in_dim, hidden_dim, heads=num_heads, concat=True)
+        self.gat2 = GATConv(hidden_dim * num_heads, out_dim, heads=1, concat=False)
+        
+    def forward(self, data):
+        x, edge_index = data.x, data.edge_index
+        x = self.gat1(x, edge_index)
+        x = F.elu(x)
+        x = self.gat2(x, edge_index)
+        return x
 
-        self.gat_layers = nn.ModuleList()
-        for _ in range(num_layers):
-            self.gat_layers.append(
-                GATConv(in_feats=node_hidden_dim,
-                        out_feats=node_hidden_dim // num_heads,
-                        num_heads=num_heads,
-                        feat_drop=0.1,
-                        attn_drop=0.1,
-                        residual=True,
-                        activation=F.elu)
-            )
+# Initialize model
+in_dim = 1
+hidden_dim = 8
+out_dim = len(spectral_targets[0])  
+num_heads = 4
 
-        self.output_layer = nn.Linear(node_hidden_dim, node_hidden_dim)
+model = GATNet(in_dim, hidden_dim, out_dim, num_heads)
 
-    def forward(self, g, node_features):
-        h = self.lin0(node_features)
-
-        for l in range(self.num_layers):
-            h = self.gat_layers[l](g, h).flatten(1)
-
-        h = self.output_layer(h)
-        return h
+# Loss function and optimizer
+criterion = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
